@@ -271,7 +271,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                     onClick={() => setSelectedMedia(media)}
                   >
                     {isVideo ? (
-                      <div className="relative bg-gray-950 w-full rounded-xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                      <div className="relative bg-gray-950 w-full rounded-xl overflow-hidden group/video" onClick={(e) => e.stopPropagation()}>
                         <video 
                           src={`/api/download?id=${media.id}&name=${encodeURIComponent(media.name)}`}
                           autoPlay
@@ -281,6 +281,17 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                           controls
                           className="w-full h-auto max-h-[60vh] object-contain"
                         />
+                        <a 
+                          href={`/api/download?id=${media.id}&name=${encodeURIComponent(media.name)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="absolute top-2 right-2 bg-blue-600/80 hover:bg-blue-500 backdrop-blur-md text-white p-2 sm:p-2.5 rounded-full shadow-lg z-10 transition-all transform hover:scale-110 flex items-center justify-center"
+                          title="Download Video"
+                        >
+                          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                          </svg>
+                        </a>
                       </div>
                     ) : (
                       <div className="relative">
