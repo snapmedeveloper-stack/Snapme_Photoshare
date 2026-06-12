@@ -338,14 +338,13 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
             </button>
             
             {selectedMedia.mimeType.includes('video') ? (
-              <div className="w-full max-w-4xl aspect-video rounded-xl shadow-2xl bg-black overflow-hidden relative">
-                <iframe 
-                  src={`https://drive.google.com/file/d/${selectedMedia.id}/preview?autoplay=1`} 
-                  className="absolute inset-0 w-full h-full border-0"
-                  allow="autoplay"
-                  allowFullScreen
-                />
-              </div>
+              <video 
+                controls 
+                autoPlay 
+                playsInline
+                src={`/api/download?id=${selectedMedia.id}&name=${encodeURIComponent(selectedMedia.name)}`} 
+                className="w-full max-w-4xl max-h-[70vh] sm:max-h-[80vh] rounded-xl shadow-2xl bg-black"
+              />
             ) : (
               <img
                 src={selectedMedia.thumbnailLink ? selectedMedia.thumbnailLink.replace('=s220', '=s2000') : `https://drive.google.com/uc?export=view&id=${selectedMedia.id}`}

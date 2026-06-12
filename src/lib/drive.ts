@@ -37,10 +37,16 @@ export async function getPhotosFromDrive(folderId: string): Promise<DriveFile[]>
       );
       const data = await res.json();
       if (data.files) {
-        const taggedFiles = data.files.map((file: any) => ({
+        let taggedFiles = data.files.map((file: any) => ({
           ...file,
           folderType: type
         }));
+
+        // Abaikan file .jpg di dalam folder Animated
+        if (type === 'animated') {
+          taggedFiles = taggedFiles.filter((f: any) => !f.mimeType.includes('image'));
+        }
+
         allFiles.push(...taggedFiles);
       }
     } catch (err) {
