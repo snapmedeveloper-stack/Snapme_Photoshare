@@ -150,6 +150,51 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
     });
   };
 
+  // === Swipe Handling Logic ===
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+  const onTouchMove = (e: React.TouchEvent) => setTouchEnd(e.targetTouches[0].clientX);
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd || !selectedGroup || !selectedMedia) return;
+    const distance = touchStart - touchEnd;
+    const isLeftSwipe = distance > minSwipeDistance;
+    const isRightSwipe = distance < -minSwipeDistance;
+
+    const currentIndex = selectedGroup.items.findIndex(m => m.id === selectedMedia.id);
+    if (isLeftSwipe && currentIndex < selectedGroup.items.length - 1) {
+      setSelectedMedia(selectedGroup.items[currentIndex + 1]);
+    }
+    if (isRightSwipe && currentIndex > 0) {
+      setSelectedMedia(selectedGroup.items[currentIndex - 1]);
+    }
+  };
+
+  // === Session Navigation Logic ===
+  const currentGroupIdx = groupedMedia.findIndex(g => g.title === selectedGroup?.title);
+  const hasPrevGroup = currentGroupIdx > 0;
+  const hasNextGroup = currentGroupIdx !== -1 && currentGroupIdx < groupedMedia.length - 1;
+
+  const goPrevGroup = () => {
+    if (hasPrevGroup) {
+      const group = groupedMedia[currentGroupIdx - 1];
+      setSelectedGroup(group);
+      setSelectedMedia(group.cover);
+    }
+  };
+  const goNextGroup = () => {
+    if (hasNextGroup) {
+      const group = groupedMedia[currentGroupIdx + 1];
+      setSelectedGroup(group);
+      setSelectedMedia(group.cover);
+    }
+  };
+
   if (!photos || photos.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4">
@@ -215,7 +260,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
         <div className="fixed inset-0 z-50 bg-gray-950 flex flex-col animate-fade-in">
           {/* Header */}
           <div className="flex-none bg-gray-900/90 backdrop-blur-xl border-b border-gray-800 px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between z-10 shadow-lg">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-4">
               <button 
                 onClick={() => {
                   setSelectedGroup(null);
@@ -227,28 +272,47 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
               </button>
-              <div>
-                <h2 className="text-lg sm:text-xl font-bold text-white truncate max-w-[200px] sm:max-w-md">{selectedGroup.title}</h2>
-                <p className="text-xs sm:text-sm text-gray-400">{selectedGroup.items.length} Files in this session</p>
+
+              {/* Prev Session Button */}
+              <button 
+                onClick={goPrevGroup} 
+                disabled={!hasPrevGroup} 
+                className="p-1.5 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                title="Previous Session"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+
+              <div className="text-center px-1">
+                <h2 className="text-base sm:text-xl font-bold text-white truncate max-w-[130px] sm:max-w-xs">{selectedGroup.title}</h2>
+                <p className="text-[10px] sm:text-xs text-gray-400">{selectedGroup.items.length} Files in session</p>
               </div>
+
+              {/* Next Session Button */}
+              <button 
+                onClick={goNextGroup} 
+                disabled={!hasNextGroup} 
+                className="p-1.5 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                title="Next Session"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
             </div>
           </div>
 
           {/* Main Preview Area */}
-          <div className="flex-1 relative flex items-center justify-center p-4 overflow-hidden bg-black/50">
-            {/* Absolute Action Buttons (Top Left) */}
-            <div className="absolute top-4 left-4 z-20 flex gap-2">
-              <a 
-                href={`/api/download?id=${selectedMedia.id}&name=${encodeURIComponent(selectedMedia.name)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                title="Download Original"
-                className="bg-gray-900/80 hover:bg-gray-800 backdrop-blur-md text-white p-2.5 sm:p-3 rounded-full shadow-lg transition-transform hover:scale-105 border border-gray-700/50"
-              >
-                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-              </a>
+          <div 
+            className="flex-1 relative flex items-center justify-center p-4 overflow-hidden bg-black/50"
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+          >
+            {/* Absolute Action Buttons (Bottom Right) */}
+            <div className="absolute bottom-4 right-4 z-20 flex gap-2">
               <button 
                 onClick={() => {
                   if (navigator.share) {
@@ -269,6 +333,17 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                 </svg>
               </button>
+              <a 
+                href={`/api/download?id=${selectedMedia.id}&name=${encodeURIComponent(selectedMedia.name)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Download Original"
+                className="bg-blue-600/90 hover:bg-blue-500 backdrop-blur-md text-white p-2.5 sm:p-3 rounded-full shadow-lg transition-transform hover:scale-105 border border-blue-500/50"
+              >
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              </a>
             </div>
 
             {/* Media Player/Viewer */}
