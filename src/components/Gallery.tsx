@@ -28,6 +28,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
   const [photos, setPhotos] = useState<DriveFile[]>(initialPhotos);
   const [selectedGroup, setSelectedGroup] = useState<MediaGroup | null>(null);
   const [selectedMedia, setSelectedMedia] = useState<DriveFile | null>(null);
+  const [slideDirection, setSlideDirection] = useState<'left' | 'right' | 'none'>('none');
   const [isDownloading, setIsDownloading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -168,9 +169,11 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
 
     const currentIndex = selectedGroup.items.findIndex(m => m.id === selectedMedia.id);
     if (isLeftSwipe && currentIndex < selectedGroup.items.length - 1) {
+      setSlideDirection('right');
       setSelectedMedia(selectedGroup.items[currentIndex + 1]);
     }
     if (isRightSwipe && currentIndex > 0) {
+      setSlideDirection('left');
       setSelectedMedia(selectedGroup.items[currentIndex - 1]);
     }
   };
@@ -259,49 +262,56 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
       {selectedGroup && selectedMedia && (
         <div className="fixed inset-0 z-50 bg-gray-950 flex flex-col animate-fade-in">
           {/* Header */}
-          <div className="flex-none bg-gray-900/90 backdrop-blur-xl border-b border-gray-800 px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between z-10 shadow-lg">
-            <div className="flex items-center gap-2 sm:gap-4">
-              <button 
-                onClick={() => {
-                  setSelectedGroup(null);
-                  setSelectedMedia(null);
-                }}
-                className="p-1.5 sm:p-2 -ml-2 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
-              >
-                <svg className="w-6 h-6 sm:w-7 sm:h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-              </button>
+          <div className="flex-none bg-gray-900/90 backdrop-blur-xl border-b border-gray-800 px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between z-10 shadow-lg relative">
+            <button 
+              onClick={() => {
+                setSelectedGroup(null);
+                setSelectedMedia(null);
+                setSlideDirection('none');
+              }}
+              className="p-1.5 sm:p-2 -ml-2 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition-colors relative z-10"
+            >
+              <svg className="w-6 h-6 sm:w-7 sm:h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+            </button>
 
-              {/* Prev Session Button */}
-              <button 
-                onClick={goPrevGroup} 
-                disabled={!hasPrevGroup} 
-                className="p-1.5 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                title="Previous Session"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
+            {/* Centered Title Area */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="flex items-center gap-2 sm:gap-4 pointer-events-auto">
+                {/* Prev Session Button */}
+                <button 
+                  onClick={goPrevGroup} 
+                  disabled={!hasPrevGroup} 
+                  className="p-1.5 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  title="Previous Session"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
 
-              <div className="text-center px-1">
-                <h2 className="text-base sm:text-xl font-bold text-white truncate max-w-[130px] sm:max-w-xs">{selectedGroup.title}</h2>
-                <p className="text-[10px] sm:text-xs text-gray-400">{selectedGroup.items.length} Files in session</p>
+                <div className="text-center px-1">
+                  <h2 className="text-base sm:text-xl font-bold text-white truncate max-w-[130px] sm:max-w-[200px]">{selectedGroup.title}</h2>
+                  <p className="text-[10px] sm:text-xs text-gray-400">{selectedGroup.items.length} Files in session</p>
+                </div>
+
+                {/* Next Session Button */}
+                <button 
+                  onClick={goNextGroup} 
+                  disabled={!hasNextGroup} 
+                  className="p-1.5 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                  title="Next Session"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
               </div>
-
-              {/* Next Session Button */}
-              <button 
-                onClick={goNextGroup} 
-                disabled={!hasNextGroup} 
-                className="p-1.5 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                title="Next Session"
-              >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
             </div>
+            
+            {/* Empty div for right-side balance */}
+            <div className="w-8 sm:w-10"></div>
           </div>
 
           {/* Main Preview Area */}
@@ -346,25 +356,29 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
               </a>
             </div>
 
-            {/* Media Player/Viewer */}
-            {selectedMedia.mimeType.includes('video') ? (
-              <video 
-                key={selectedMedia.id}
-                controls 
-                autoPlay 
-                playsInline
-                src={`/api/download?id=${selectedMedia.id}&name=${encodeURIComponent(selectedMedia.name)}`} 
-                className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
-              />
-            ) : (
-              <img
-                key={selectedMedia.id}
-                src={selectedMedia.thumbnailLink ? selectedMedia.thumbnailLink.replace('=s220', '=s2000') : `https://drive.google.com/uc?export=view&id=${selectedMedia.id}`}
-                onError={(e) => { e.currentTarget.src = `https://drive.google.com/uc?export=view&id=${selectedMedia.id}`; }}
-                alt={selectedMedia.name}
-                className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
-              />
-            )}
+            {/* Media Player/Viewer wrapped with animation */}
+            <div 
+              key={selectedMedia.id}
+              className={`w-full h-full flex items-center justify-center ${slideDirection === 'right' ? 'animate-slide-right' : slideDirection === 'left' ? 'animate-slide-left' : 'animate-fade-in'}`}
+              onAnimationEnd={() => setSlideDirection('none')}
+            >
+              {selectedMedia.mimeType.includes('video') ? (
+                <video 
+                  controls 
+                  autoPlay 
+                  playsInline
+                  src={`/api/download?id=${selectedMedia.id}&name=${encodeURIComponent(selectedMedia.name)}`} 
+                  className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+                />
+              ) : (
+                <img
+                  src={selectedMedia.thumbnailLink ? selectedMedia.thumbnailLink.replace('=s220', '=s2000') : `https://drive.google.com/uc?export=view&id=${selectedMedia.id}`}
+                  onError={(e) => { e.currentTarget.src = `https://drive.google.com/uc?export=view&id=${selectedMedia.id}`; }}
+                  alt={selectedMedia.name}
+                  className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+                />
+              )}
+            </div>
           </div>
 
           {/* Thumbnail Strip & Action Footer */}
@@ -381,7 +395,12 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                 return (
                   <button
                     key={media.id}
-                    onClick={() => setSelectedMedia(media)}
+                    onClick={() => {
+                      const currentIndex = selectedGroup.items.findIndex(m => m.id === selectedMedia.id);
+                      const newIndex = selectedGroup.items.findIndex(m => m.id === media.id);
+                      setSlideDirection(newIndex > currentIndex ? 'right' : newIndex < currentIndex ? 'left' : 'none');
+                      setSelectedMedia(media);
+                    }}
                     className={`flex-none relative w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden transition-all duration-300 ${isActive ? 'ring-4 ring-blue-500 scale-105' : 'opacity-60 hover:opacity-100 hover:scale-105'}`}
                   >
                     {isVideo && (
