@@ -41,7 +41,7 @@ export default async function DriveGalleryPage({ params }: { params: Promise<{ d
             <p className="text-gray-400 mt-2 max-w-md">{error}</p>
           </div>
         ) : (
-          <Gallery photos={photos} />
+          <Gallery initialPhotos={photos} driveId={driveId} />
         )}
       </div>
     </main>

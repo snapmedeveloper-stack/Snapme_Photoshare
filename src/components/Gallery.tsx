@@ -1,36 +1,56 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { DriveFile } from '@/lib/drive';
+import { getPhotosFromDrive } from '@/lib/drive';
 
 function parseDateFromFilename(filename: string): Date | null {
   const match = filename.match(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/);
-  if (!match) return null;
-  const [_, year, month, day, hour, minute, second] = match;
-  return new Date(
-    parseInt(year),
-    parseInt(month) - 1,
-    parseInt(day),
-    parseInt(hour),
-    parseInt(minute),
-    parseInt(second)
-  );
+  if (match) {
+    const [, yyyy, MM, dd, hh, mm, ss] = match;
+    return new Date(`${yyyy}-${MM}-${dd}T${hh}:${mm}:${ss}`);
+  }
+  return null;
 }
 
-function formatTime(date: Date) {
-  return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+function formatTime(date: Date | null): string {
+  if (!date) return 'Unknown Time';
+  return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':');
 }
 
-type MediaGroup = {
+interface MediaGroup {
   title: string;
   items: DriveFile[];
   cover: DriveFile;
-};
+}
 
-export default function Gallery({ photos }: { photos: DriveFile[] }) {
+export default function Gallery({ initialPhotos, driveId }: { initialPhotos: DriveFile[], driveId: string }) {
+  const [photos, setPhotos] = useState<DriveFile[]>(initialPhotos);
   const [selectedGroup, setSelectedGroup] = useState<MediaGroup | null>(null);
   const [selectedMedia, setSelectedMedia] = useState<DriveFile | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Auto-polling for new photos every 10 seconds
+  useEffect(() => {
+    if (!driveId) return;
+    
+    const interval = setInterval(async () => {
+      try {
+        const freshPhotos = await getPhotosFromDrive(driveId);
+        // Jika ada perubahan jumlah file, perbarui data di layar
+        if (freshPhotos.length !== photos.length) {
+          setIsRefreshing(true);
+          setPhotos(freshPhotos);
+          setTimeout(() => setIsRefreshing(false), 2000);
+        }
+      } catch (err) {
+        console.error('Auto-refresh failed:', err);
+      }
+    }, 10000); // 10 detik
+
+    return () => clearInterval(interval);
+  }, [driveId, photos.length]);
 
   // Group media based on Prints as the anchor
   const groupedMedia = useMemo(() => {
