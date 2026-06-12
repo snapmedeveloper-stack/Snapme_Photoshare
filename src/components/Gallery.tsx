@@ -271,7 +271,19 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                     onClick={() => setSelectedMedia(media)}
                   >
                     {isVideo ? (
-                      <div className="relative bg-gray-900 aspect-[4/3] flex items-center justify-center">
+                      <div className="relative bg-gray-950 w-full rounded-xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                        <video 
+                          src={`/api/download?id=${media.id}&name=${encodeURIComponent(media.name)}`}
+                          autoPlay
+                          loop
+                          muted
+                          playsInline
+                          controls
+                          className="w-full h-auto max-h-[60vh] object-contain"
+                        />
+                      </div>
+                    ) : (
+                      <div className="relative">
                         <img
                           src={highResThumbnail || driveFallback}
                           onError={(e) => { 
@@ -280,38 +292,13 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                               e.currentTarget.src = originalThumb;
                             } else if (current === originalThumb || current.includes('=s220')) {
                               e.currentTarget.src = driveFallback;
-                            } else {
-                              // Sembunyikan icon broken image jika semua sumber thumbnail gagal dimuat
-                              e.currentTarget.style.opacity = '0';
                             }
                           }}
                           alt={media.name}
                           loading="lazy"
-                          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 opacity-50"
+                          className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105"
                         />
-                        <div className="absolute inset-0 flex items-center justify-center z-10">
-                          <div className="bg-black/60 p-4 rounded-full backdrop-blur-sm group-hover:bg-blue-600 transition-colors">
-                            <svg className="w-10 h-10 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M4 4l12 6-12 6z" />
-                            </svg>
-                          </div>
-                        </div>
                       </div>
-                    ) : (
-                      <img
-                        src={highResThumbnail || driveFallback}
-                        onError={(e) => { 
-                          const current = e.currentTarget.src;
-                          if (current.includes('=s1000') && originalThumb) {
-                            e.currentTarget.src = originalThumb;
-                          } else if (current === originalThumb || current.includes('=s220')) {
-                            e.currentTarget.src = driveFallback;
-                          }
-                        }}
-                        alt={media.name}
-                        loading="lazy"
-                        className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
                     )}
                   </div>
                 );
