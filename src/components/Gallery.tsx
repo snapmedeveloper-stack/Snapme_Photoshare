@@ -172,7 +172,10 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
           return (
             <div 
               key={index}
-              onClick={() => setSelectedGroup(group)}
+              onClick={() => {
+                setSelectedGroup(group);
+                setSelectedMedia(group.cover);
+              }}
               className="group cursor-pointer bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden hover:border-blue-500/50 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-blue-500/20"
             >
               <div className="aspect-[3/4] sm:aspect-square overflow-hidden relative">
@@ -207,14 +210,17 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
         })}
       </div>
 
-      {/* DETAIL VIEW MODAL */}
-      {selectedGroup && (
-        <div className="fixed inset-0 z-40 bg-gray-950 flex flex-col animate-fade-in">
-          {/* Modal Header */}
-          <div className="flex-none bg-gray-900/90 backdrop-blur-xl border-b border-gray-800 px-4 py-3 sm:px-6 sm:py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sticky top-0 z-10 shadow-lg">
+      {/* FOCUS VIEW MODAL (Session Details) */}
+      {selectedGroup && selectedMedia && (
+        <div className="fixed inset-0 z-50 bg-gray-950 flex flex-col animate-fade-in">
+          {/* Header */}
+          <div className="flex-none bg-gray-900/90 backdrop-blur-xl border-b border-gray-800 px-4 py-3 sm:px-6 sm:py-4 flex items-center justify-between z-10 shadow-lg">
             <div className="flex items-center gap-3">
               <button 
-                onClick={() => setSelectedGroup(null)}
+                onClick={() => {
+                  setSelectedGroup(null);
+                  setSelectedMedia(null);
+                }}
                 className="p-1.5 sm:p-2 -ml-2 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
               >
                 <svg className="w-6 h-6 sm:w-7 sm:h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -226,142 +232,129 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                 <p className="text-xs sm:text-sm text-gray-400">{selectedGroup.items.length} Files in this session</p>
               </div>
             </div>
-            
-            <button
-              onClick={handleDownloadAll}
-              disabled={isDownloading}
-              className={`w-full sm:w-auto justify-center px-4 py-2 sm:px-5 sm:py-2.5 rounded-full font-semibold flex items-center gap-2 transition-all text-sm sm:text-base ${
-                isDownloading 
-                  ? 'bg-blue-600/50 text-white cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/30 hover:scale-105'
-              }`}
-            >
-              {isDownloading ? (
-                <>
-                  <svg className="animate-spin w-4 h-4 sm:w-5 sm:h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Downloading...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Download All
-                </>
-              )}
-            </button>
           </div>
 
-          {/* Modal Content (Files) */}
-          <div className="flex-1 overflow-y-auto p-3 sm:p-6">
-            <div className="max-w-7xl mx-auto columns-2 sm:columns-3 lg:columns-4 gap-3 sm:gap-6 space-y-3 sm:space-y-6">
-              {selectedGroup.items.map((media) => {
-                const isVideo = media.mimeType.includes('video');
-                const originalThumb = media.thumbnailLink || '';
-                const highResThumbnail = originalThumb ? originalThumb.replace('=s220', '=s1000') : '';
-                const driveFallback = `https://drive.google.com/thumbnail?id=${media.id}&sz=w800`;
-
-                return (
-                  <div 
-                    key={media.id} 
-                    className="break-inside-avoid relative group cursor-pointer overflow-hidden rounded-xl bg-gray-900 border border-gray-800 shadow-lg transform transition duration-300 hover:-translate-y-1 hover:shadow-blue-500/20 hover:border-blue-500/50"
-                    onClick={() => setSelectedMedia(media)}
-                  >
-                    {isVideo ? (
-                      <div className="relative bg-gray-950 w-full rounded-xl overflow-hidden group/video" onClick={(e) => e.stopPropagation()}>
-                        <video 
-                          src={`/api/download?id=${media.id}&name=${encodeURIComponent(media.name)}`}
-                          autoPlay
-                          loop
-                          muted
-                          playsInline
-                          controls
-                          className="w-full h-auto max-h-[60vh] object-contain"
-                        />
-                        <a 
-                          href={`/api/download?id=${media.id}&name=${encodeURIComponent(media.name)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="absolute top-2 right-2 bg-blue-600/80 hover:bg-blue-500 backdrop-blur-md text-white p-2 sm:p-2.5 rounded-full shadow-lg z-10 transition-all transform hover:scale-110 flex items-center justify-center"
-                          title="Download Video"
-                        >
-                          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                          </svg>
-                        </a>
-                      </div>
-                    ) : (
-                      <div className="relative">
-                        <img
-                          src={highResThumbnail || driveFallback}
-                          onError={(e) => { 
-                            const current = e.currentTarget.src;
-                            if (current.includes('=s1000') && originalThumb) {
-                              e.currentTarget.src = originalThumb;
-                            } else if (current === originalThumb || current.includes('=s220')) {
-                              e.currentTarget.src = driveFallback;
-                            }
-                          }}
-                          alt={media.name}
-                          loading="lazy"
-                          className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+          {/* Main Preview Area */}
+          <div className="flex-1 relative flex items-center justify-center p-4 overflow-hidden bg-black/50">
+            {/* Absolute Action Buttons (Top Left) */}
+            <div className="absolute top-4 left-4 z-20 flex gap-2">
+              <a 
+                href={`/api/download?id=${selectedMedia.id}&name=${encodeURIComponent(selectedMedia.name)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Download Original"
+                className="bg-gray-900/80 hover:bg-gray-800 backdrop-blur-md text-white p-2.5 sm:p-3 rounded-full shadow-lg transition-transform hover:scale-105 border border-gray-700/50"
+              >
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              </a>
+              <button 
+                onClick={() => {
+                  if (navigator.share) {
+                    navigator.share({
+                      title: 'Snapme Photoshare',
+                      text: 'Check out this photo/video!',
+                      url: window.location.href,
+                    }).catch((error) => console.error('Error sharing', error));
+                  } else {
+                    navigator.clipboard.writeText(window.location.href);
+                    alert("Link copied to clipboard!");
+                  }
+                }}
+                title="Share"
+                className="bg-gray-900/80 hover:bg-gray-800 backdrop-blur-md text-white p-2.5 sm:p-3 rounded-full shadow-lg transition-transform hover:scale-105 border border-gray-700/50"
+              >
+                <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+              </button>
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* LIGHTBOX FOR INDIVIDUAL MEDIA */}
-      {selectedMedia && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-2 sm:p-4 backdrop-blur-2xl animate-fade-in"
-          onClick={() => setSelectedMedia(null)}
-        >
-          <div className="relative w-full max-w-5xl h-full sm:h-auto max-h-full flex flex-col items-center justify-center" onClick={e => e.stopPropagation()}>
-            <button 
-              className="absolute top-4 right-4 sm:-top-12 sm:right-0 bg-black/50 sm:bg-white/10 hover:bg-white/20 text-white rounded-full p-2 transition-colors backdrop-blur-md z-50"
-              onClick={() => setSelectedMedia(null)}
-            >
-              <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            
+            {/* Media Player/Viewer */}
             {selectedMedia.mimeType.includes('video') ? (
               <video 
+                key={selectedMedia.id}
                 controls 
                 autoPlay 
                 playsInline
                 src={`/api/download?id=${selectedMedia.id}&name=${encodeURIComponent(selectedMedia.name)}`} 
-                className="w-full max-w-4xl max-h-[70vh] sm:max-h-[80vh] rounded-xl shadow-2xl bg-black"
+                className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
               />
             ) : (
               <img
+                key={selectedMedia.id}
                 src={selectedMedia.thumbnailLink ? selectedMedia.thumbnailLink.replace('=s220', '=s2000') : `https://drive.google.com/uc?export=view&id=${selectedMedia.id}`}
                 onError={(e) => { e.currentTarget.src = `https://drive.google.com/uc?export=view&id=${selectedMedia.id}`; }}
                 alt={selectedMedia.name}
-                className="max-w-full max-h-[70vh] sm:max-h-[80vh] object-contain rounded-xl shadow-2xl"
+                className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
               />
             )}
+          </div>
 
-            <div className="mt-4 sm:mt-6 flex w-full sm:w-auto px-4 sm:px-0">
-              <a 
-                href={`/api/download?id=${selectedMedia.id}&name=${encodeURIComponent(selectedMedia.name)}`}
-                className="w-full sm:w-auto justify-center px-4 py-2.5 sm:px-6 sm:py-3 bg-white hover:bg-gray-200 text-gray-900 font-bold rounded-full transition-all flex items-center gap-2 shadow-xl transform sm:hover:scale-105 text-sm sm:text-base"
+          {/* Thumbnail Strip & Action Footer */}
+          <div className="flex-none bg-gray-900 border-t border-gray-800 flex flex-col">
+            {/* Thumbnail Strip */}
+            <div className="flex overflow-x-auto gap-3 p-4 items-center no-scrollbar">
+              {selectedGroup.items.map((media) => {
+                const isVideo = media.mimeType.includes('video');
+                const originalThumb = media.thumbnailLink || '';
+                const highResThumbnail = originalThumb ? originalThumb.replace('=s220', '=s400') : '';
+                const driveFallback = `https://drive.google.com/thumbnail?id=${media.id}&sz=w400`;
+                const isActive = selectedMedia.id === media.id;
+
+                return (
+                  <button
+                    key={media.id}
+                    onClick={() => setSelectedMedia(media)}
+                    className={`flex-none relative w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden transition-all duration-300 ${isActive ? 'ring-4 ring-blue-500 scale-105' : 'opacity-60 hover:opacity-100 hover:scale-105'}`}
+                  >
+                    {isVideo && (
+                      <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/30">
+                        <svg className="w-8 h-8 text-white drop-shadow-md" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M4 4l12 6-12 6z" />
+                        </svg>
+                      </div>
+                    )}
+                    <img
+                      src={highResThumbnail || driveFallback}
+                      onError={(e) => { e.currentTarget.src = driveFallback; }}
+                      alt={media.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Download All Footer */}
+            <div className="p-4 border-t border-gray-800 bg-gray-950">
+              <button
+                onClick={handleDownloadAll}
+                disabled={isDownloading}
+                className={`w-full py-3 sm:py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all text-base sm:text-lg ${
+                  isDownloading 
+                    ? 'bg-blue-600/50 text-white cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/30'
+                }`}
               >
-                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                </svg>
-                Download Original
-              </a>
+                {isDownloading ? (
+                  <>
+                    <svg className="animate-spin w-5 h-5 sm:w-6 sm:h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Downloading...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Download All Session Files
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
