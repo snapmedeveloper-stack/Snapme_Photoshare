@@ -30,6 +30,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
   const [selectedMedia, setSelectedMedia] = useState<DriveFile | null>(null);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | 'none'>('none');
   const [isDownloading, setIsDownloading] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Auto-polling for new photos every 10 seconds
@@ -343,17 +344,33 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
                 </svg>
               </button>
-              <a 
-                href={`/api/download?id=${selectedMedia.id}&name=${encodeURIComponent(selectedMedia.name)}`}
-                target="_blank"
-                rel="noopener noreferrer"
+              <button 
+                onClick={async () => {
+                  setToastMessage("Downloading...");
+                  try {
+                    const res = await fetch(`/api/download?id=${selectedMedia.id}&name=${encodeURIComponent(selectedMedia.name)}`);
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = selectedMedia.name;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    setToastMessage("Success: Downloaded!");
+                  } catch (e) {
+                    setToastMessage("Error: Download failed");
+                  }
+                  setTimeout(() => setToastMessage(null), 3000);
+                }}
                 title="Download Original"
                 className="bg-blue-600/90 hover:bg-blue-500 backdrop-blur-md text-white p-2.5 sm:p-3 rounded-full shadow-lg transition-transform hover:scale-105 border border-blue-500/50"
               >
                 <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                 </svg>
-              </a>
+              </button>
             </div>
 
             {/* Media Player/Viewer wrapped with animation */}
@@ -451,6 +468,25 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
               </button>
             </div>
           </div>
+        </div>
+      )}
+      {/* LIGHTBOX FOR INDIVIDUAL MEDIA */}
+      {/* ... Lightbox removed ... */}
+
+      {/* TOAST NOTIFICATION */}
+      {toastMessage && (
+        <div className="fixed top-12 left-1/2 transform -translate-x-1/2 z-[100] bg-gray-900/90 backdrop-blur-lg text-white px-5 py-3 rounded-full shadow-[0_10px_40px_rgba(0,0,0,0.5)] border border-gray-700 animate-fade-in flex items-center gap-3 font-medium text-sm sm:text-base transition-all">
+          {toastMessage === 'Downloading...' ? (
+            <svg className="animate-spin w-5 h-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          ) : toastMessage.includes('Success') ? (
+            <svg className="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : null}
+          {toastMessage.replace('Success: ', '').replace('Error: ', '')}
         </div>
       )}
     </>
