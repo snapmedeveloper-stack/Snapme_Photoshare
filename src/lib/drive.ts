@@ -22,9 +22,9 @@ export async function getPhotosFromDrive(folderId: string): Promise<DriveFile[]>
   const foldersData = await foldersRes.json();
   const subfolders = foldersData.files || [];
 
-  const animatedFolder = subfolders.find((f: any) => f.name.toLowerCase() === 'animated');
-  const printsFolder = subfolders.find((f: any) => f.name.toLowerCase() === 'prints');
-  const originalsFolder = subfolders.find((f: any) => f.name.toLowerCase() === 'originals');
+  const animatedFolder = subfolders.find((f: any) => f.name.toLowerCase().includes('animated'));
+  const printsFolder = subfolders.find((f: any) => f.name.toLowerCase().includes('print'));
+  const originalsFolder = subfolders.find((f: any) => f.name.toLowerCase().includes('original'));
 
   const allFiles: DriveFile[] = [];
 

@@ -5,7 +5,8 @@ import type { DriveFile } from '@/lib/drive';
 import { getPhotosFromDrive } from '@/lib/drive';
 
 function parseDateFromFilename(filename: string): Date | null {
-  const match = filename.match(/^(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/);
+  // Menghilangkan tanda '^' di awal agar bisa membaca file dengan awalan seperti "IMG_3855_"
+  const match = filename.match(/(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/);
   if (match) {
     const [, yyyy, MM, dd, hh, mm, ss] = match;
     return new Date(`${yyyy}-${MM}-${dd}T${hh}:${mm}:${ss}`);
