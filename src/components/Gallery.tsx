@@ -47,7 +47,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [readyFilesToShare, setReadyFilesToShare] = useState<File[] | null>(null);
-  const [downloadProgress, setDownloadProgress] = useState<{ current: number; total: number; showPopup: boolean }>({ current: 0, total: 0, showPopup: false });
+  const [downloadProgress, setDownloadProgress] = useState<{ current: number; total: number; showPopup: boolean; loadedBytes: number }>({ current: 0, total: 0, showPopup: false, loadedBytes: 0 });
 
   // Auto-polling for new photos every 10 seconds
   useEffect(() => {
@@ -165,25 +165,44 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
 
     if (canUseShare && isIOS) {
       if (readyFilesToShare) {
-        setDownloadProgress({ current: selectedGroup.items.length, total: selectedGroup.items.length, showPopup: true });
+        setDownloadProgress({ current: selectedGroup.items.length, total: selectedGroup.items.length, showPopup: true, loadedBytes: 0 });
         return;
       }
 
       // Tahap 1: Persiapan dan Pengunduhan file ke memori
       setIsDownloading(true);
-      setDownloadProgress({ current: 0, total: selectedGroup.items.length, showPopup: true });
+      setDownloadProgress({ current: 0, total: selectedGroup.items.length, showPopup: true, loadedBytes: 0 });
       try {
         const files: File[] = [];
         let i = 0;
+        let totalBytes = 0;
         for (const item of selectedGroup.items) {
           const properName = getProperFilename(item.name, item.mimeType);
           const res = await fetch(`/api/download?id=${item.id}&name=${encodeURIComponent(properName)}&mimeType=${encodeURIComponent(item.mimeType)}`);
           if (!res.ok) throw new Error("Fetch failed");
-          const blob = await res.blob();
+          
+          const reader = res.body?.getReader();
+          const chunks: Uint8Array[] = [];
+          if (reader) {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              if (value) {
+                chunks.push(value);
+                totalBytes += value.length;
+                setDownloadProgress({ 
+                  current: i + 1, 
+                  total: selectedGroup.items.length, 
+                  showPopup: true, 
+                  loadedBytes: totalBytes 
+                });
+              }
+            }
+          }
+          const blob = new Blob(chunks as any[], { type: item.mimeType });
           files.push(new File([blob], properName, { type: item.mimeType }));
           
           i++;
-          setDownloadProgress({ current: i, total: selectedGroup.items.length, showPopup: true });
         }
 
         setReadyFilesToShare(files);
@@ -191,7 +210,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
         console.error("Error fetching files:", err);
         setToastMessage("Error: Failed to prepare files");
         setTimeout(() => setToastMessage(null), 3000);
-        setDownloadProgress({ current: 0, total: 0, showPopup: false });
+        setDownloadProgress({ current: 0, total: 0, showPopup: false, loadedBytes: 0 });
       } finally {
         setIsDownloading(false);
       }
@@ -336,7 +355,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                 setSelectedMedia(null);
                 setSlideDirection('none');
                 setReadyFilesToShare(null); // Clear prepared files on close
-                setDownloadProgress({ current: 0, total: 0, showPopup: false });
+                setDownloadProgress({ current: 0, total: 0, showPopup: false, loadedBytes: 0 });
               }}
               className="p-1.5 sm:p-2 -ml-2 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition-colors relative z-10"
             >
@@ -586,7 +605,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                         }
                       } finally {
                         setReadyFilesToShare(null);
-                        setDownloadProgress({ current: 0, total: 0, showPopup: false });
+                        setDownloadProgress({ current: 0, total: 0, showPopup: false, loadedBytes: 0 });
                         setTimeout(() => setToastMessage(null), 3000);
                       }
                     }}
@@ -597,7 +616,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                   <button 
                     onClick={() => {
                       setReadyFilesToShare(null);
-                      setDownloadProgress({ current: 0, total: 0, showPopup: false });
+                      setDownloadProgress({ current: 0, total: 0, showPopup: false, loadedBytes: 0 });
                     }}
                     className="w-full mt-3 bg-transparent text-white/60 hover:text-white font-medium py-2 px-4 transition-all active:scale-95"
                   >
@@ -615,9 +634,12 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                       {Math.round((downloadProgress.current / (downloadProgress.total || 1)) * 100)}%
                     </div>
                   </div>
-                  <h3 className="text-xl font-semibold text-white mb-2 tracking-tight">Preparing Files</h3>
-                  <p className="text-white/70 mb-6 text-sm font-medium">
+                  <h3 className="text-xl font-semibold text-white mb-1 tracking-tight">Preparing Files</h3>
+                  <p className="text-white/70 mb-2 text-sm font-medium">
                     Downloading {downloadProgress.current} of {downloadProgress.total} files...
+                  </p>
+                  <p className="text-blue-300 font-mono text-xs mb-5 bg-blue-900/40 px-2.5 py-1 rounded-md shadow-inner border border-blue-500/20">
+                    {(downloadProgress.loadedBytes / (1024 * 1024)).toFixed(2)} MB
                   </p>
                   <div className="w-full bg-black/30 rounded-full h-3 mb-2 overflow-hidden shadow-inner border border-white/10">
                     <div className="bg-gradient-to-r from-blue-500 to-cyan-400 h-3 rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(59,130,246,0.5)]" style={{ width: `${(downloadProgress.current / (downloadProgress.total || 1)) * 100}%` }}></div>

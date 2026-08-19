@@ -27,14 +27,19 @@ export async function GET(request: NextRequest) {
 
     const responseContentType = response.headers.get('Content-Type');
     const finalContentType = mimeType || (responseContentType && responseContentType !== 'application/octet-stream' ? responseContentType : 'application/octet-stream');
+    const contentLength = response.headers.get('Content-Length');
+
+    const headers: Record<string, string> = {
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Type': finalContentType,
+    };
+    
+    if (contentLength) {
+      headers['Content-Length'] = contentLength;
+    }
 
     // Proxy the stream to the client
-    return new NextResponse(response.body, {
-      headers: {
-        'Content-Disposition': `attachment; filename="${filename}"`,
-        'Content-Type': finalContentType,
-      },
-    });
+    return new NextResponse(response.body, { headers });
   } catch (error) {
     console.error('Download Proxy Error:', error);
     return new NextResponse('Failed to download file', { status: 500 });
