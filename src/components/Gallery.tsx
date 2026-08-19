@@ -56,8 +56,11 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
     const interval = setInterval(async () => {
       try {
         const freshPhotos = await getPhotosFromDrive(driveId);
-        // Jika ada perubahan jumlah file, perbarui data di layar
-        if (freshPhotos.length !== photos.length) {
+        // Perbarui state jika jumlah berbeda, atau jika data lama belum punya properti 'size'
+        if (
+          freshPhotos.length !== photos.length || 
+          (freshPhotos.length > 0 && freshPhotos[0].size && !photos[0]?.size)
+        ) {
           setIsRefreshing(true);
           setPhotos(freshPhotos);
           setTimeout(() => setIsRefreshing(false), 2000);
