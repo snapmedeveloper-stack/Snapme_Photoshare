@@ -152,9 +152,11 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
   const handleDownload = async (filesToDownload: DriveFile[], groupTitle: string) => {
     if (!filesToDownload || filesToDownload.length === 0 || isDownloading) return;
     
-    // Gunakan Web Share API khusus untuk iOS karena iOS memblokir multiple downloads
+    // Deteksi iOS (iPhone/iPad/iPod)
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
     let canUseShare = false;
-    if (navigator.canShare) {
+    if (navigator.canShare && isIOS) {
       try {
         const dummyFile = new File([''], 'test.txt', { type: 'text/plain' });
         canUseShare = navigator.canShare({ files: [dummyFile] });
@@ -162,111 +164,112 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
         canUseShare = false;
       }
     }
-    
-    // Deteksi perangkat Mobile (iOS dan Android)
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-    if (canUseShare && isMobile) {
-      if (readyFilesToShare) {
-        setDownloadProgress({ current: filesToDownload.length, total: filesToDownload.length, showPopup: true, loadedBytes: 0, totalBytes: 0 });
-        return;
-      }
-
-      // Tahap 1: Persiapan dan Pengunduhan file ke memori
-      setIsDownloading(true);
-      const totalBytesToDownload = filesToDownload.reduce((acc, item) => acc + parseInt(item.size || '0', 10), 0);
-      setDownloadProgress({ current: 0, total: filesToDownload.length, showPopup: true, loadedBytes: 0, totalBytes: totalBytesToDownload });
-      try {
-        let totalBytesLoaded = 0;
-        let filesCompleted = 0;
-        let lastUpdateTime = 0;
-        
-        const fetchPromises = filesToDownload.map(async (item) => {
-          const properName = getProperFilename(item.name, item.mimeType);
-          const res = await fetch(`/api/download?id=${item.id}&name=${encodeURIComponent(properName)}&mimeType=${encodeURIComponent(item.mimeType)}`);
-          if (!res.ok) throw new Error("Fetch failed");
-          
-          const reader = res.body?.getReader();
-          const chunks: Uint8Array[] = [];
-          if (reader) {
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              if (value) {
-                chunks.push(value);
-                totalBytesLoaded += value.length;
-                
-                // Throttle UI updates to max 10 FPS (100ms) to prevent React from freezing the browser main thread
-                const now = Date.now();
-                if (now - lastUpdateTime > 100) {
-                  lastUpdateTime = now;
-                  setDownloadProgress({ 
-                    current: filesCompleted, 
-                    total: filesToDownload.length, 
-                    showPopup: true, 
-                    loadedBytes: totalBytesLoaded,
-                    totalBytes: totalBytesToDownload
-                  });
-                }
-              }
-            }
-          }
-          
-          filesCompleted += 1;
-          // Force update when a file finishes
-          setDownloadProgress({ 
-            current: filesCompleted, 
-            total: filesToDownload.length, 
-            showPopup: true, 
-            loadedBytes: totalBytesLoaded,
-            totalBytes: totalBytesToDownload
-          });
-
-          const blob = new Blob(chunks as any[], { type: item.mimeType });
-          return new File([blob], properName, { type: item.mimeType });
-        });
-
-        const files = await Promise.all(fetchPromises);
-        
-        // Pastikan progress mentok di 100% jika ada sedikit selisih byte dari API
-        setDownloadProgress({ 
-          current: filesToDownload.length, 
-          total: filesToDownload.length, 
-          showPopup: true, 
-          loadedBytes: totalBytesToDownload,
-          totalBytes: totalBytesToDownload
-        });
-        
-        setReadyFilesToShare(files);
-      } catch (err: any) {
-        console.error("Error fetching files:", err);
-        setToastMessage("Gagal: Tidak dapat menyiapkan file");
-        setTimeout(() => setToastMessage(null), 3000);
-        setDownloadProgress({ current: 0, total: 0, showPopup: false, loadedBytes: 0, totalBytes: 0 });
-      } finally {
-        setIsDownloading(false);
-      }
+    if (canUseShare && isIOS && readyFilesToShare) {
+      setDownloadProgress({ current: filesToDownload.length, total: filesToDownload.length, showPopup: true, loadedBytes: 0, totalBytes: 0 });
       return;
     }
 
-    // Fallback untuk Android / PC (Logic lama)
+    // TAHAP 1: Persiapan dan Pengunduhan file ke memori (Berlaku untuk semua device)
     setIsDownloading(true);
-    filesToDownload.forEach((item, index) => {
-      setTimeout(() => {
+    const totalBytesToDownload = filesToDownload.reduce((acc, item) => acc + parseInt(item.size || '0', 10), 0);
+    setDownloadProgress({ current: 0, total: filesToDownload.length, showPopup: true, loadedBytes: 0, totalBytes: totalBytesToDownload });
+    try {
+      let totalBytesLoaded = 0;
+      let filesCompleted = 0;
+      let lastUpdateTime = 0;
+      
+      const fetchPromises = filesToDownload.map(async (item) => {
         const properName = getProperFilename(item.name, item.mimeType);
-        const link = document.createElement('a');
-        link.href = `/api/download?id=${item.id}&name=${encodeURIComponent(properName)}&mimeType=${encodeURIComponent(item.mimeType)}`;
-        link.download = properName;
-        link.target = '_blank'; // Tetap butuh _blank di HP tertentu
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const res = await fetch(`/api/download?id=${item.id}&name=${encodeURIComponent(properName)}&mimeType=${encodeURIComponent(item.mimeType)}`);
+        if (!res.ok) throw new Error("Fetch failed");
         
-        if (index === filesToDownload.length - 1) {
-          setTimeout(() => setIsDownloading(false), 1500);
+        const reader = res.body?.getReader();
+        const chunks: Uint8Array[] = [];
+        if (reader) {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value) {
+              chunks.push(value);
+              totalBytesLoaded += value.length;
+              
+              // Throttle UI updates to max 10 FPS (100ms) to prevent React from freezing the browser main thread
+              const now = Date.now();
+              if (now - lastUpdateTime > 100) {
+                lastUpdateTime = now;
+                setDownloadProgress({ 
+                  current: filesCompleted, 
+                  total: filesToDownload.length, 
+                  showPopup: true, 
+                  loadedBytes: totalBytesLoaded,
+                  totalBytes: totalBytesToDownload
+                });
+              }
+            }
+          }
         }
-      }, index * 800);
-    });
+        
+        filesCompleted += 1;
+        // Force update when a file finishes
+        setDownloadProgress({ 
+          current: filesCompleted, 
+          total: filesToDownload.length, 
+          showPopup: true, 
+          loadedBytes: totalBytesLoaded,
+          totalBytes: totalBytesToDownload
+        });
+
+        const blob = new Blob(chunks as any[], { type: item.mimeType });
+        return new File([blob], properName, { type: item.mimeType });
+      });
+
+      const files = await Promise.all(fetchPromises);
+      
+      // Pastikan progress mentok di 100% jika ada sedikit selisih byte dari API
+      setDownloadProgress({ 
+        current: filesToDownload.length, 
+        total: filesToDownload.length, 
+        showPopup: true, 
+        loadedBytes: totalBytesToDownload,
+        totalBytes: totalBytesToDownload
+      });
+
+      // TAHAP 2: Penyelesaian
+      if (canUseShare && isIOS) {
+        // Khusus iOS: Tampilkan tombol 'Simpan ke Galeri' untuk membuka Share Sheet
+        setReadyFilesToShare(files);
+      } else {
+        // Android / PC: Langsung simpan ke disk menggunakan Blob URL
+        setDownloadProgress({ current: 0, total: 0, showPopup: false, loadedBytes: 0, totalBytes: 0 });
+        setToastMessage("Menyimpan ke memori...");
+        
+        files.forEach((file, index) => {
+          setTimeout(() => {
+            const url = window.URL.createObjectURL(file);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = file.name;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => window.URL.revokeObjectURL(url), 2000);
+            
+            if (index === files.length - 1) {
+              setToastMessage("Berhasil: Diunduh!");
+              setTimeout(() => setToastMessage(null), 3000);
+            }
+          }, index * 500); // Jeda agar browser memproses multiple download dengan aman
+        });
+      }
+    } catch (err: any) {
+      console.error("Error fetching files:", err);
+      setToastMessage("Gagal: Tidak dapat menyiapkan file");
+      setTimeout(() => setToastMessage(null), 3000);
+      setDownloadProgress({ current: 0, total: 0, showPopup: false, loadedBytes: 0, totalBytes: 0 });
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   // === Swipe Handling Logic ===
