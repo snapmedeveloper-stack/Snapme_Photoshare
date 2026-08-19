@@ -559,7 +559,14 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                   </svg>
                 </div>
                 <h3 className="text-xl font-bold text-white mb-2">Ready to Save!</h3>
-                <p className="text-gray-400 mb-6 text-sm">Your files are ready to be saved to the Gallery.</p>
+                <p className="text-gray-400 mb-3 text-sm">File Anda sudah siap disimpan.</p>
+                
+                <div className="bg-blue-900/30 border border-blue-500/30 p-3 rounded-xl mb-6 w-full text-left">
+                  <p className="text-sm text-blue-200 leading-relaxed">
+                    <strong className="block mb-1 text-white">Langkah Selanjutnya:</strong>
+                    Setelah klik tombol di bawah, menu iPhone akan muncul. Scroll sedikit ke bawah dan pilih opsi <strong className="text-white bg-blue-500/40 px-1 rounded">"Simpan {readyFilesToShare.length} Item"</strong> (atau Save {readyFilesToShare.length} Items).
+                  </p>
+                </div>
                 
                 <button 
                   onClick={async () => {
