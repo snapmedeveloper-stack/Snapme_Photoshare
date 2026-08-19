@@ -47,6 +47,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [readyFilesToShare, setReadyFilesToShare] = useState<File[] | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState<{ current: number; total: number; showPopup: boolean }>({ current: 0, total: 0, showPopup: false });
 
   // Auto-polling for new photos every 10 seconds
   useEffect(() => {
@@ -164,43 +165,33 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
 
     if (canUseShare && isIOS) {
       if (readyFilesToShare) {
-        // Tahap 2: Memicu Share Menu (Langsung tanpa jeda, sehingga lolos blokir Safari)
-        try {
-          await navigator.share({
-            title: selectedGroup.title,
-            files: readyFilesToShare
-          });
-          setToastMessage("Success: Opened Share Menu");
-        } catch (err: any) {
-          if (err.name !== 'AbortError') {
-            console.error("Error sharing files:", err);
-          }
-        } finally {
-          setReadyFilesToShare(null); // Reset setelah share
-          setTimeout(() => setToastMessage(null), 3000);
-        }
+        setDownloadProgress({ current: selectedGroup.items.length, total: selectedGroup.items.length, showPopup: true });
         return;
       }
 
       // Tahap 1: Persiapan dan Pengunduhan file ke memori
       setIsDownloading(true);
-      setToastMessage("Preparing files...");
+      setDownloadProgress({ current: 0, total: selectedGroup.items.length, showPopup: true });
       try {
         const files: File[] = [];
+        let i = 0;
         for (const item of selectedGroup.items) {
           const properName = getProperFilename(item.name, item.mimeType);
           const res = await fetch(`/api/download?id=${item.id}&name=${encodeURIComponent(properName)}&mimeType=${encodeURIComponent(item.mimeType)}`);
           if (!res.ok) throw new Error("Fetch failed");
           const blob = await res.blob();
           files.push(new File([blob], properName, { type: item.mimeType }));
+          
+          i++;
+          setDownloadProgress({ current: i, total: selectedGroup.items.length, showPopup: true });
         }
 
         setReadyFilesToShare(files);
-        setToastMessage("Ready! Tap button again to Save.");
       } catch (err: any) {
         console.error("Error fetching files:", err);
         setToastMessage("Error: Failed to prepare files");
         setTimeout(() => setToastMessage(null), 3000);
+        setDownloadProgress({ current: 0, total: 0, showPopup: false });
       } finally {
         setIsDownloading(false);
       }
@@ -345,6 +336,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                 setSelectedMedia(null);
                 setSlideDirection('none');
                 setReadyFilesToShare(null); // Clear prepared files on close
+                setDownloadProgress({ current: 0, total: 0, showPopup: false });
               }}
               className="p-1.5 sm:p-2 -ml-2 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition-colors relative z-10"
             >
@@ -526,7 +518,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                     : 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/30'
                 }`}
               >
-                {isDownloading ? (
+                {isDownloading && !downloadProgress.showPopup ? (
                   <>
                     <svg className="animate-spin w-5 h-5 sm:w-6 sm:h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -534,7 +526,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                     </svg>
                     Downloading...
                   </>
-                ) : readyFilesToShare ? (
+                ) : readyFilesToShare && !downloadProgress.showPopup ? (
                   <>
                     <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -554,8 +546,76 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
           </div>
         </div>
       )}
-      {/* LIGHTBOX FOR INDIVIDUAL MEDIA */}
-      {/* ... Lightbox removed ... */}
+
+      {/* iOS Download Prepare Modal */}
+      {downloadProgress.showPopup && (
+        <div className="fixed inset-0 z-[60] bg-gray-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl flex flex-col items-center text-center">
+            {readyFilesToShare ? (
+              <>
+                <div className="w-16 h-16 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center mb-4">
+                  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Ready to Save!</h3>
+                <p className="text-gray-400 mb-6 text-sm">Your files are ready to be saved to the Gallery.</p>
+                
+                <button 
+                  onClick={async () => {
+                    try {
+                      await navigator.share({
+                        title: selectedGroup?.title || '',
+                        files: readyFilesToShare
+                      });
+                      setToastMessage("Success: Opened Share Menu");
+                    } catch (err: any) {
+                      if (err.name !== 'AbortError') {
+                        console.error("Error sharing files:", err);
+                      }
+                    } finally {
+                      setReadyFilesToShare(null);
+                      setDownloadProgress({ current: 0, total: 0, showPopup: false });
+                      setTimeout(() => setToastMessage(null), 3000);
+                    }
+                  }}
+                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all"
+                >
+                  Save to Gallery
+                </button>
+                <button 
+                  onClick={() => {
+                    setReadyFilesToShare(null);
+                    setDownloadProgress({ current: 0, total: 0, showPopup: false });
+                  }}
+                  className="w-full mt-3 bg-transparent text-gray-400 hover:text-white font-medium py-2 px-4 transition-all"
+                >
+                  Cancel
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="relative w-16 h-16 mb-4">
+                  <svg className="animate-spin w-16 h-16 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white">
+                    {Math.round((downloadProgress.current / (downloadProgress.total || 1)) * 100)}%
+                  </div>
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Preparing Files</h3>
+                <p className="text-gray-400 mb-6 text-sm">
+                  Downloading {downloadProgress.current} of {downloadProgress.total} files...
+                </p>
+                <div className="w-full bg-gray-800 rounded-full h-2.5 mb-2 overflow-hidden">
+                  <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${(downloadProgress.current / (downloadProgress.total || 1)) * 100}%` }}></div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* TOAST NOTIFICATION */}
       {toastMessage && (
