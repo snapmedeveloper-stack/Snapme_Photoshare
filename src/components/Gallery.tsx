@@ -3,8 +3,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import type { DriveFile } from '@/lib/drive';
 import { getPhotosFromDrive } from '@/lib/drive';
-import JSZip from 'jszip';
-import { saveAs } from 'file-saver';
 
 function parseDateFromFilename(filename: string): Date | null {
   // Menghilangkan tanda '^' di awal agar bisa membaca file dengan awalan seperti "IMG_3855_"
@@ -148,41 +146,70 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
 
   const handleDownloadAll = async () => {
     if (!selectedGroup || isDownloading) return;
-    setIsDownloading(true);
-    setToastMessage("Preparing zip...");
     
-    try {
-      const zip = new JSZip();
-      // Bersihkan nama folder dari karakter aneh
-      const folderName = selectedGroup.title.replace(/[^a-zA-Z0-9 _-]/g, '').trim().replace(/\s+/g, '_');
-      const folder = zip.folder(folderName);
-      
-      if (!folder) throw new Error("Could not create zip folder");
-
-      // Fetch all files and add them to the zip
-      const fetchPromises = selectedGroup.items.map(async (item) => {
-        const properName = getProperFilename(item.name, item.mimeType);
-        const url = `/api/download?id=${item.id}&name=${encodeURIComponent(properName)}&mimeType=${encodeURIComponent(item.mimeType)}`;
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`Failed to fetch ${properName}`);
-        const blob = await response.blob();
-        folder.file(properName, blob);
-      });
-
-      await Promise.all(fetchPromises);
-      
-      setToastMessage("Zipping files...");
-      const zipBlob = await zip.generateAsync({ type: 'blob' });
-      saveAs(zipBlob, `${folderName}.zip`);
-      
-      setToastMessage("Success: Downloaded!");
-    } catch (err) {
-      console.error('Download All Error:', err);
-      setToastMessage("Error: Failed to create zip");
-    } finally {
-      setIsDownloading(false);
-      setTimeout(() => setToastMessage(null), 3000);
+    // Gunakan Web Share API khusus untuk iOS karena iOS memblokir multiple downloads
+    let canUseShare = false;
+    if (navigator.canShare) {
+      try {
+        const dummyFile = new File([''], 'test.txt', { type: 'text/plain' });
+        canUseShare = navigator.canShare({ files: [dummyFile] });
+      } catch (e) {
+        canUseShare = false;
+      }
     }
+    
+    // Deteksi iOS (iPhone/iPad/iPod)
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    if (canUseShare && isIOS) {
+      setIsDownloading(true);
+      setToastMessage("Preparing files...");
+      try {
+        const files: File[] = [];
+        for (const item of selectedGroup.items) {
+          const properName = getProperFilename(item.name, item.mimeType);
+          const res = await fetch(`/api/download?id=${item.id}&name=${encodeURIComponent(properName)}&mimeType=${encodeURIComponent(item.mimeType)}`);
+          const blob = await res.blob();
+          files.push(new File([blob], properName, { type: item.mimeType }));
+        }
+
+        await navigator.share({
+          title: selectedGroup.title,
+          files: files
+        });
+        setToastMessage("Success: Opened Share Menu");
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          console.error("Error sharing files:", err);
+          setToastMessage("Error: Failed to prepare files");
+        } else {
+           setToastMessage(null); // User cancelled share
+        }
+      } finally {
+        setIsDownloading(false);
+        setTimeout(() => setToastMessage(null), 3000);
+      }
+      return;
+    }
+
+    // Fallback untuk Android / PC (Logic lama)
+    setIsDownloading(true);
+    selectedGroup.items.forEach((item, index) => {
+      setTimeout(() => {
+        const properName = getProperFilename(item.name, item.mimeType);
+        const link = document.createElement('a');
+        link.href = `/api/download?id=${item.id}&name=${encodeURIComponent(properName)}&mimeType=${encodeURIComponent(item.mimeType)}`;
+        link.download = properName;
+        link.target = '_blank'; // Tetap butuh _blank di HP tertentu
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        if (index === selectedGroup.items.length - 1) {
+          setTimeout(() => setIsDownloading(false), 1500);
+        }
+      }, index * 800);
+    });
   };
 
   // === Swipe Handling Logic ===
