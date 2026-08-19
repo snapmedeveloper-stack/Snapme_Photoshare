@@ -3,6 +3,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import type { DriveFile } from '@/lib/drive';
 import { getPhotosFromDrive } from '@/lib/drive';
+import JSZip from 'jszip';
+import { saveAs } from 'file-saver';
 
 function parseDateFromFilename(filename: string): Date | null {
   // Menghilangkan tanda '^' di awal agar bisa membaca file dengan awalan seperti "IMG_3855_"
@@ -144,27 +146,43 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
     return groups.reverse(); // Terbaru di atas
   }, [photos]);
 
-  const handleDownloadAll = () => {
+  const handleDownloadAll = async () => {
     if (!selectedGroup || isDownloading) return;
     setIsDownloading(true);
+    setToastMessage("Preparing zip...");
     
-    // Trigger downloads securely via Next.js Proxy API to avoid CORS and Frame blocks
-    selectedGroup.items.forEach((item, index) => {
-      setTimeout(() => {
+    try {
+      const zip = new JSZip();
+      // Bersihkan nama folder dari karakter aneh
+      const folderName = selectedGroup.title.replace(/[^a-zA-Z0-9 _-]/g, '').trim().replace(/\s+/g, '_');
+      const folder = zip.folder(folderName);
+      
+      if (!folder) throw new Error("Could not create zip folder");
+
+      // Fetch all files and add them to the zip
+      const fetchPromises = selectedGroup.items.map(async (item) => {
         const properName = getProperFilename(item.name, item.mimeType);
-        const link = document.createElement('a');
-        link.href = `/api/download?id=${item.id}&name=${encodeURIComponent(properName)}&mimeType=${encodeURIComponent(item.mimeType)}`;
-        link.download = properName;
-        link.target = '_blank'; // Tetap butuh _blank di HP tertentu
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        if (index === selectedGroup.items.length - 1) {
-          setTimeout(() => setIsDownloading(false), 1500);
-        }
-      }, index * 800);
-    });
+        const url = `/api/download?id=${item.id}&name=${encodeURIComponent(properName)}&mimeType=${encodeURIComponent(item.mimeType)}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Failed to fetch ${properName}`);
+        const blob = await response.blob();
+        folder.file(properName, blob);
+      });
+
+      await Promise.all(fetchPromises);
+      
+      setToastMessage("Zipping files...");
+      const zipBlob = await zip.generateAsync({ type: 'blob' });
+      saveAs(zipBlob, `${folderName}.zip`);
+      
+      setToastMessage("Success: Downloaded!");
+    } catch (err) {
+      console.error('Download All Error:', err);
+      setToastMessage("Error: Failed to create zip");
+    } finally {
+      setIsDownloading(false);
+      setTimeout(() => setToastMessage(null), 3000);
+    }
   };
 
   // === Swipe Handling Logic ===
