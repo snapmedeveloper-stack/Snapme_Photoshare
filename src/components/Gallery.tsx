@@ -329,15 +329,10 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 opacity-90 group-hover:opacity-100"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-gray-900/40 to-transparent"></div>
-                <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2">
+                <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 flex flex-col justify-end items-start gap-2">
                   <div>
                     <h3 className="text-sm sm:text-lg font-bold text-white mb-0.5 sm:mb-1">{group.title}</h3>
                     <p className="text-xs sm:text-sm text-gray-300 font-medium">{group.items.length} Files</p>
-                  </div>
-                  <div className="hidden sm:flex w-8 h-8 sm:w-10 sm:h-10 bg-blue-500/80 backdrop-blur text-white rounded-full items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
-                    <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                    </svg>
                   </div>
                 </div>
               </div>
