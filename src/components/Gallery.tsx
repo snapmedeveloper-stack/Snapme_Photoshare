@@ -15,7 +15,7 @@ function parseDateFromFilename(filename: string): Date | null {
 }
 
 function formatTime(date: Date | null): string {
-  if (!date) return 'Unknown Time';
+  if (!date) return 'Waktu Tidak Diketahui';
   return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':');
 }
 
@@ -210,7 +210,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
         setReadyFilesToShare(files);
       } catch (err: any) {
         console.error("Error fetching files:", err);
-        setToastMessage("Error: Failed to prepare files");
+        setToastMessage("Gagal: Tidak dapat menyiapkan file");
         setTimeout(() => setToastMessage(null), 3000);
         setDownloadProgress({ current: 0, total: 0, showPopup: false, loadedBytes: 0, totalBytes: 0 });
       } finally {
@@ -332,7 +332,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                 <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 flex flex-col justify-end items-start gap-2">
                   <div>
                     <h3 className="text-sm sm:text-lg font-bold text-white mb-0.5 sm:mb-1">{group.title}</h3>
-                    <p className="text-xs sm:text-sm text-gray-300 font-medium">{group.items.length} Files</p>
+                    <p className="text-xs sm:text-sm text-gray-300 font-medium">{group.items.length} File</p>
                   </div>
                 </div>
               </div>
@@ -378,7 +378,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
 
                 <div className="text-center px-1">
                   <h2 className="text-base sm:text-xl font-bold text-white truncate max-w-[130px] sm:max-w-[200px]">{selectedGroup.title}</h2>
-                  <p className="text-[10px] sm:text-xs text-gray-400">{selectedGroup.items.length} Files in session</p>
+                  <p className="text-[10px] sm:text-xs text-gray-400">{selectedGroup.items.length} File di sesi ini</p>
                 </div>
 
                 {/* Next Session Button */}
@@ -430,7 +430,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
               </button>
               <button 
                 onClick={async () => {
-                  setToastMessage("Downloading...");
+                  setToastMessage("Mengunduh...");
                   try {
                     const properName = getProperFilename(selectedMedia.name, selectedMedia.mimeType);
                     const res = await fetch(`/api/download?id=${selectedMedia.id}&name=${encodeURIComponent(properName)}&mimeType=${encodeURIComponent(selectedMedia.mimeType)}`);
@@ -443,13 +443,13 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                     a.click();
                     window.URL.revokeObjectURL(url);
                     document.body.removeChild(a);
-                    setToastMessage("Success: Downloaded!");
-                  } catch (e) {
-                    setToastMessage("Error: Download failed");
+                    setToastMessage("Berhasil: Diunduh!");
+                  } catch (err) {
+                    setToastMessage("Gagal: Unduhan bermasalah");
                   }
                   setTimeout(() => setToastMessage(null), 3000);
                 }}
-                title="Download Original"
+                title="Unduh Original"
                 className="bg-blue-600/90 hover:bg-blue-500 backdrop-blur-md text-white p-2.5 sm:p-3 rounded-full shadow-lg transition-transform hover:scale-105 border border-blue-500/50"
               >
                 <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -540,21 +540,21 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Downloading...
+                    Mengunduh...
                   </>
                 ) : readyFilesToShare && !downloadProgress.showPopup ? (
                   <>
                     <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    Save to Gallery (Tap Here)
+                    Simpan ke Galeri (Ketuk di Sini)
                   </>
                 ) : (
                   <>
                     <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
-                    Download All Session Files
+                    Unduh Semua File Sesi
                   </>
                 )}
               </button>
@@ -578,7 +578,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
-                  <h3 className="text-2xl font-semibold text-white mb-2 tracking-tight">Ready to Save!</h3>
+                  <h3 className="text-2xl font-semibold text-white mb-2 tracking-tight">Siap Disimpan!</h3>
                   <p className="text-white/70 mb-4 text-sm font-medium">File Anda sudah siap disimpan.</p>
                   
                   <div className="bg-black/20 border border-white/10 p-4 rounded-2xl mb-6 w-full text-left backdrop-blur-md">
@@ -595,7 +595,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                           title: selectedGroup?.title || '',
                           files: readyFilesToShare
                         });
-                        setToastMessage("Success: Opened Share Menu");
+                        setToastMessage("Berhasil: Menu Bagikan Terbuka");
                       } catch (err: any) {
                         if (err.name !== 'AbortError') {
                           console.error("Error sharing files:", err);
@@ -608,7 +608,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                     }}
                     className="w-full bg-[#007AFF] hover:bg-blue-500 text-white font-semibold py-3.5 px-4 rounded-xl shadow-lg transition-all text-lg active:scale-95"
                   >
-                    Save to Gallery
+                    Simpan ke Galeri
                   </button>
                   <button 
                     onClick={() => {
@@ -617,7 +617,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                     }}
                     className="w-full mt-3 bg-transparent text-white/60 hover:text-white font-medium py-2 px-4 transition-all active:scale-95"
                   >
-                    Cancel
+                    Batal
                   </button>
                 </>
               ) : (
@@ -633,9 +633,9 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                         : Math.round((downloadProgress.current / (downloadProgress.total || 1)) * 100)}%
                     </div>
                   </div>
-                  <h3 className="text-xl font-semibold text-white mb-1 tracking-tight">Preparing Files</h3>
+                  <h3 className="text-xl font-semibold text-white mb-1 tracking-tight">Menyiapkan File</h3>
                   <p className="text-white/70 mb-2 text-sm font-medium">
-                    Downloading {downloadProgress.current} of {downloadProgress.total} files...
+                    Mengunduh {downloadProgress.current} dari {downloadProgress.total} file...
                   </p>
                   <p className="text-blue-300 font-mono text-xs mb-5 bg-blue-900/40 px-2.5 py-1 rounded-md shadow-inner border border-blue-500/20">
                     {(downloadProgress.loadedBytes / (1024 * 1024)).toFixed(2)} MB 
