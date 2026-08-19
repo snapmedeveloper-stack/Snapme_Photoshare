@@ -4,6 +4,7 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const id = searchParams.get('id');
   const filename = searchParams.get('name') || 'download';
+  const mimeType = searchParams.get('mimeType');
 
   if (!id) {
     return new NextResponse('Missing file ID', { status: 400 });
@@ -14,19 +15,24 @@ export async function GET(request: NextRequest) {
     return new NextResponse('Server Configuration Error', { status: 500 });
   }
 
-  const url = `https://www.googleapis.com/drive/v3/files/${id}?alt=media&key=${apiKey}`;
+  const url = `https://drive.google.com/uc?export=download&id=${id}`;
 
   try {
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`Google Drive API returned ${response.status}`);
+      const errText = await response.text();
+      console.error(`Google Drive download failed. Status: ${response.status}, Error: ${errText}`);
+      throw new Error(`Google Drive download returned ${response.status}`);
     }
+
+    const responseContentType = response.headers.get('Content-Type');
+    const finalContentType = mimeType || (responseContentType && responseContentType !== 'application/octet-stream' ? responseContentType : 'application/octet-stream');
 
     // Proxy the stream to the client
     return new NextResponse(response.body, {
       headers: {
         'Content-Disposition': `attachment; filename="${filename}"`,
-        'Content-Type': response.headers.get('Content-Type') || 'application/octet-stream',
+        'Content-Type': finalContentType,
       },
     });
   } catch (error) {

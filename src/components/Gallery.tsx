@@ -19,6 +19,19 @@ function formatTime(date: Date | null): string {
   return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':');
 }
 
+function getProperFilename(name: string, mimeType: string): string {
+  const hasExtension = /\.[a-zA-Z0-9]{3,4}$/.test(name);
+  if (hasExtension) return name;
+  
+  let ext = '';
+  if (mimeType.includes('jpeg') || mimeType.includes('jpg')) ext = '.jpg';
+  else if (mimeType.includes('mp4') || mimeType.includes('video')) ext = '.mp4';
+  else if (mimeType.includes('gif')) ext = '.gif';
+  else if (mimeType.includes('png')) ext = '.png';
+  
+  return name + ext;
+}
+
 interface MediaGroup {
   title: string;
   items: DriveFile[];
@@ -138,9 +151,10 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
     // Trigger downloads securely via Next.js Proxy API to avoid CORS and Frame blocks
     selectedGroup.items.forEach((item, index) => {
       setTimeout(() => {
+        const properName = getProperFilename(item.name, item.mimeType);
         const link = document.createElement('a');
-        link.href = `/api/download?id=${item.id}&name=${encodeURIComponent(item.name)}`;
-        link.download = item.name;
+        link.href = `/api/download?id=${item.id}&name=${encodeURIComponent(properName)}&mimeType=${encodeURIComponent(item.mimeType)}`;
+        link.download = properName;
         link.target = '_blank'; // Tetap butuh _blank di HP tertentu
         document.body.appendChild(link);
         link.click();
@@ -349,12 +363,13 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                 onClick={async () => {
                   setToastMessage("Downloading...");
                   try {
-                    const res = await fetch(`/api/download?id=${selectedMedia.id}&name=${encodeURIComponent(selectedMedia.name)}`);
+                    const properName = getProperFilename(selectedMedia.name, selectedMedia.mimeType);
+                    const res = await fetch(`/api/download?id=${selectedMedia.id}&name=${encodeURIComponent(properName)}&mimeType=${encodeURIComponent(selectedMedia.mimeType)}`);
                     const blob = await res.blob();
                     const url = window.URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = selectedMedia.name;
+                    a.download = properName;
                     document.body.appendChild(a);
                     a.click();
                     window.URL.revokeObjectURL(url);
@@ -385,7 +400,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                   controls 
                   autoPlay 
                   playsInline
-                  src={`/api/download?id=${selectedMedia.id}&name=${encodeURIComponent(selectedMedia.name)}`} 
+                  src={`/api/download?id=${selectedMedia.id}&name=${encodeURIComponent(getProperFilename(selectedMedia.name, selectedMedia.mimeType))}&mimeType=${encodeURIComponent(selectedMedia.mimeType)}`} 
                   className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
                 />
               ) : (
