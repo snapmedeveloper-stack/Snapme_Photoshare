@@ -176,6 +176,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
       try {
         let totalBytesLoaded = 0;
         let filesCompleted = 0;
+        let lastUpdateTime = 0;
         
         const fetchPromises = filesToDownload.map(async (item) => {
           const properName = getProperFilename(item.name, item.mimeType);
@@ -192,19 +193,24 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                 chunks.push(value);
                 totalBytesLoaded += value.length;
                 
-                // Throttle UI updates or update safely. JS is single-threaded so += is safe.
-                setDownloadProgress({ 
-                  current: filesCompleted, 
-                  total: filesToDownload.length, 
-                  showPopup: true, 
-                  loadedBytes: totalBytesLoaded,
-                  totalBytes: totalBytesToDownload
-                });
+                // Throttle UI updates to max 10 FPS (100ms) to prevent React from freezing the browser main thread
+                const now = Date.now();
+                if (now - lastUpdateTime > 100) {
+                  lastUpdateTime = now;
+                  setDownloadProgress({ 
+                    current: filesCompleted, 
+                    total: filesToDownload.length, 
+                    showPopup: true, 
+                    loadedBytes: totalBytesLoaded,
+                    totalBytes: totalBytesToDownload
+                  });
+                }
               }
             }
           }
           
           filesCompleted += 1;
+          // Force update when a file finishes
           setDownloadProgress({ 
             current: filesCompleted, 
             total: filesToDownload.length, 
