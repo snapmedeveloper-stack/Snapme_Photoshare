@@ -163,10 +163,10 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
       }
     }
     
-    // Deteksi iOS (iPhone/iPad/iPod)
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    // Deteksi perangkat Mobile (iOS dan Android)
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
-    if (canUseShare && isIOS) {
+    if (canUseShare && isMobile) {
       if (readyFilesToShare) {
         setDownloadProgress({ current: filesToDownload.length, total: filesToDownload.length, showPopup: true, loadedBytes: 0, totalBytes: 0 });
         return;
@@ -598,11 +598,11 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                   <div className="bg-black/20 border border-white/10 p-4 rounded-2xl mb-6 w-full text-left backdrop-blur-md">
                     <p className="text-sm text-white/90 leading-relaxed">
                       <strong className="block mb-1 text-white font-semibold">Langkah Selanjutnya:</strong>
-                      Setelah klik tombol di bawah, menu iPhone akan muncul. Scroll sedikit ke bawah dan pilih opsi <strong className="text-white bg-blue-500/60 px-1.5 py-0.5 rounded-md shadow-sm">
+                      Setelah klik tombol di bawah, menu Share akan muncul. Silakan pilih opsi <strong className="text-white bg-blue-500/60 px-1.5 py-0.5 rounded-md shadow-sm">
                         {readyFilesToShare.length > 1 
                           ? `"Simpan ${readyFilesToShare.length} Item"` 
                           : (readyFilesToShare[0].type.includes('video') ? '"Simpan Video"' : '"Simpan Gambar"')}
-                      </strong>.
+                      </strong> (atau simpan ke Google Photos/Galeri).
                     </p>
                   </div>
                   
