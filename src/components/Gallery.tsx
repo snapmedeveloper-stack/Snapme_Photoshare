@@ -47,7 +47,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [readyFilesToShare, setReadyFilesToShare] = useState<File[] | null>(null);
-  const [downloadProgress, setDownloadProgress] = useState<{ current: number; total: number; showPopup: boolean; loadedBytes: number }>({ current: 0, total: 0, showPopup: false, loadedBytes: 0 });
+  const [downloadProgress, setDownloadProgress] = useState<{ current: number; total: number; showPopup: boolean; loadedBytes: number; totalBytes: number }>({ current: 0, total: 0, showPopup: false, loadedBytes: 0, totalBytes: 0 });
 
   // Auto-polling for new photos every 10 seconds
   useEffect(() => {
@@ -165,17 +165,18 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
 
     if (canUseShare && isIOS) {
       if (readyFilesToShare) {
-        setDownloadProgress({ current: selectedGroup.items.length, total: selectedGroup.items.length, showPopup: true, loadedBytes: 0 });
+        setDownloadProgress({ current: selectedGroup.items.length, total: selectedGroup.items.length, showPopup: true, loadedBytes: 0, totalBytes: 0 });
         return;
       }
 
       // Tahap 1: Persiapan dan Pengunduhan file ke memori
       setIsDownloading(true);
-      setDownloadProgress({ current: 0, total: selectedGroup.items.length, showPopup: true, loadedBytes: 0 });
+      const totalBytesToDownload = selectedGroup.items.reduce((acc, item) => acc + parseInt(item.size || '0', 10), 0);
+      setDownloadProgress({ current: 0, total: selectedGroup.items.length, showPopup: true, loadedBytes: 0, totalBytes: totalBytesToDownload });
       try {
         const files: File[] = [];
         let i = 0;
-        let totalBytes = 0;
+        let totalBytesLoaded = 0;
         for (const item of selectedGroup.items) {
           const properName = getProperFilename(item.name, item.mimeType);
           const res = await fetch(`/api/download?id=${item.id}&name=${encodeURIComponent(properName)}&mimeType=${encodeURIComponent(item.mimeType)}`);
@@ -189,12 +190,13 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
               if (done) break;
               if (value) {
                 chunks.push(value);
-                totalBytes += value.length;
+                totalBytesLoaded += value.length;
                 setDownloadProgress({ 
                   current: i + 1, 
                   total: selectedGroup.items.length, 
                   showPopup: true, 
-                  loadedBytes: totalBytes 
+                  loadedBytes: totalBytesLoaded,
+                  totalBytes: totalBytesToDownload
                 });
               }
             }
@@ -210,7 +212,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
         console.error("Error fetching files:", err);
         setToastMessage("Error: Failed to prepare files");
         setTimeout(() => setToastMessage(null), 3000);
-        setDownloadProgress({ current: 0, total: 0, showPopup: false, loadedBytes: 0 });
+        setDownloadProgress({ current: 0, total: 0, showPopup: false, loadedBytes: 0, totalBytes: 0 });
       } finally {
         setIsDownloading(false);
       }
@@ -355,7 +357,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                 setSelectedMedia(null);
                 setSlideDirection('none');
                 setReadyFilesToShare(null); // Clear prepared files on close
-                setDownloadProgress({ current: 0, total: 0, showPopup: false, loadedBytes: 0 });
+                setDownloadProgress({ current: 0, total: 0, showPopup: false, loadedBytes: 0, totalBytes: 0 });
               }}
               className="p-1.5 sm:p-2 -ml-2 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition-colors relative z-10"
             >
@@ -605,7 +607,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                         }
                       } finally {
                         setReadyFilesToShare(null);
-                        setDownloadProgress({ current: 0, total: 0, showPopup: false, loadedBytes: 0 });
+                        setDownloadProgress({ current: 0, total: 0, showPopup: false, loadedBytes: 0, totalBytes: 0 });
                         setTimeout(() => setToastMessage(null), 3000);
                       }
                     }}
@@ -616,7 +618,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                   <button 
                     onClick={() => {
                       setReadyFilesToShare(null);
-                      setDownloadProgress({ current: 0, total: 0, showPopup: false, loadedBytes: 0 });
+                      setDownloadProgress({ current: 0, total: 0, showPopup: false, loadedBytes: 0, totalBytes: 0 });
                     }}
                     className="w-full mt-3 bg-transparent text-white/60 hover:text-white font-medium py-2 px-4 transition-all active:scale-95"
                   >
@@ -631,7 +633,9 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white drop-shadow-md">
-                      {Math.round((downloadProgress.current / (downloadProgress.total || 1)) * 100)}%
+                      {downloadProgress.totalBytes > 0 
+                        ? Math.min(100, Math.round((downloadProgress.loadedBytes / downloadProgress.totalBytes) * 100))
+                        : Math.round((downloadProgress.current / (downloadProgress.total || 1)) * 100)}%
                     </div>
                   </div>
                   <h3 className="text-xl font-semibold text-white mb-1 tracking-tight">Preparing Files</h3>
@@ -639,10 +643,17 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                     Downloading {downloadProgress.current} of {downloadProgress.total} files...
                   </p>
                   <p className="text-blue-300 font-mono text-xs mb-5 bg-blue-900/40 px-2.5 py-1 rounded-md shadow-inner border border-blue-500/20">
-                    {(downloadProgress.loadedBytes / (1024 * 1024)).toFixed(2)} MB
+                    {(downloadProgress.loadedBytes / (1024 * 1024)).toFixed(2)} MB 
+                    {downloadProgress.totalBytes > 0 ? ` / ${(downloadProgress.totalBytes / (1024 * 1024)).toFixed(2)} MB` : ''}
                   </p>
                   <div className="w-full bg-black/30 rounded-full h-3 mb-2 overflow-hidden shadow-inner border border-white/10">
-                    <div className="bg-gradient-to-r from-blue-500 to-cyan-400 h-3 rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(59,130,246,0.5)]" style={{ width: `${(downloadProgress.current / (downloadProgress.total || 1)) * 100}%` }}></div>
+                    <div className="bg-gradient-to-r from-blue-500 to-cyan-400 h-3 rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(59,130,246,0.5)]" 
+                      style={{ 
+                        width: `${downloadProgress.totalBytes > 0 
+                          ? (downloadProgress.loadedBytes / downloadProgress.totalBytes) * 100 
+                          : (downloadProgress.current / (downloadProgress.total || 1)) * 100}%` 
+                      }}>
+                    </div>
                   </div>
                 </>
               )}

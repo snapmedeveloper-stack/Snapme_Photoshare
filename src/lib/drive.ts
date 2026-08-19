@@ -6,6 +6,7 @@ export interface DriveFile {
   mimeType: string;
   thumbnailLink?: string;
   webContentLink?: string;
+  size?: string;
   folderType?: 'animated' | 'print' | 'original';
 }
 
@@ -33,7 +34,7 @@ export async function getPhotosFromDrive(folderId: string): Promise<DriveFile[]>
     if (!fId) return;
     try {
       const res = await fetch(
-        `https://www.googleapis.com/drive/v3/files?q='${fId}'+in+parents+and+mimeType!='application/vnd.google-apps.folder'+and+trashed=false&fields=files(id,name,mimeType,thumbnailLink,webContentLink)&pageSize=1000&key=${apiKey}`
+        `https://www.googleapis.com/drive/v3/files?q='${fId}'+in+parents+and+mimeType!='application/vnd.google-apps.folder'+and+trashed=false&fields=files(id,name,mimeType,thumbnailLink,webContentLink,size)&pageSize=1000&key=${apiKey}`
       );
       const data = await res.json();
       if (data.files) {
