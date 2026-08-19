@@ -146,8 +146,8 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
     return groups.reverse(); // Terbaru di atas
   }, [photos]);
 
-  const handleDownloadAll = async () => {
-    if (!selectedGroup || isDownloading) return;
+  const handleDownload = async (filesToDownload: DriveFile[], groupTitle: string) => {
+    if (!filesToDownload || filesToDownload.length === 0 || isDownloading) return;
     
     // Gunakan Web Share API khusus untuk iOS karena iOS memblokir multiple downloads
     let canUseShare = false;
@@ -165,19 +165,19 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
 
     if (canUseShare && isIOS) {
       if (readyFilesToShare) {
-        setDownloadProgress({ current: selectedGroup.items.length, total: selectedGroup.items.length, showPopup: true, loadedBytes: 0, totalBytes: 0 });
+        setDownloadProgress({ current: filesToDownload.length, total: filesToDownload.length, showPopup: true, loadedBytes: 0, totalBytes: 0 });
         return;
       }
 
       // Tahap 1: Persiapan dan Pengunduhan file ke memori
       setIsDownloading(true);
-      const totalBytesToDownload = selectedGroup.items.reduce((acc, item) => acc + parseInt(item.size || '0', 10), 0);
-      setDownloadProgress({ current: 0, total: selectedGroup.items.length, showPopup: true, loadedBytes: 0, totalBytes: totalBytesToDownload });
+      const totalBytesToDownload = filesToDownload.reduce((acc, item) => acc + parseInt(item.size || '0', 10), 0);
+      setDownloadProgress({ current: 0, total: filesToDownload.length, showPopup: true, loadedBytes: 0, totalBytes: totalBytesToDownload });
       try {
         const files: File[] = [];
         let i = 0;
         let totalBytesLoaded = 0;
-        for (const item of selectedGroup.items) {
+        for (const item of filesToDownload) {
           const properName = getProperFilename(item.name, item.mimeType);
           const res = await fetch(`/api/download?id=${item.id}&name=${encodeURIComponent(properName)}&mimeType=${encodeURIComponent(item.mimeType)}`);
           if (!res.ok) throw new Error("Fetch failed");
@@ -193,7 +193,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                 totalBytesLoaded += value.length;
                 setDownloadProgress({ 
                   current: i + 1, 
-                  total: selectedGroup.items.length, 
+                  total: filesToDownload.length, 
                   showPopup: true, 
                   loadedBytes: totalBytesLoaded,
                   totalBytes: totalBytesToDownload
@@ -221,7 +221,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
 
     // Fallback untuk Android / PC (Logic lama)
     setIsDownloading(true);
-    selectedGroup.items.forEach((item, index) => {
+    filesToDownload.forEach((item, index) => {
       setTimeout(() => {
         const properName = getProperFilename(item.name, item.mimeType);
         const link = document.createElement('a');
@@ -232,7 +232,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
         link.click();
         document.body.removeChild(link);
         
-        if (index === selectedGroup.items.length - 1) {
+        if (index === filesToDownload.length - 1) {
           setTimeout(() => setIsDownloading(false), 1500);
         }
       }, index * 800);
@@ -429,28 +429,12 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                 </svg>
               </button>
               <button 
-                onClick={async () => {
-                  setToastMessage("Mengunduh...");
-                  try {
-                    const properName = getProperFilename(selectedMedia.name, selectedMedia.mimeType);
-                    const res = await fetch(`/api/download?id=${selectedMedia.id}&name=${encodeURIComponent(properName)}&mimeType=${encodeURIComponent(selectedMedia.mimeType)}`);
-                    const blob = await res.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = properName;
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
-                    setToastMessage("Berhasil: Diunduh!");
-                  } catch (err) {
-                    setToastMessage("Gagal: Unduhan bermasalah");
-                  }
-                  setTimeout(() => setToastMessage(null), 3000);
-                }}
+                onClick={() => handleDownload([selectedMedia], selectedMedia.name)}
                 title="Unduh Original"
-                className="bg-blue-600/90 hover:bg-blue-500 backdrop-blur-md text-white p-2.5 sm:p-3 rounded-full shadow-lg transition-transform hover:scale-105 border border-blue-500/50"
+                disabled={isDownloading}
+                className={`bg-blue-600/90 backdrop-blur-md text-white p-2.5 sm:p-3 rounded-full shadow-lg transition-transform border border-blue-500/50 ${
+                  isDownloading ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-500 hover:scale-105'
+                }`}
               >
                 <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -526,7 +510,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
             {/* Download All Footer */}
             <div className="p-4 border-t border-gray-800 bg-gray-950">
               <button
-                onClick={handleDownloadAll}
+                onClick={() => handleDownload(selectedGroup.items, selectedGroup.title)}
                 disabled={isDownloading}
                 className={`w-full py-3 sm:py-4 rounded-xl font-bold flex items-center justify-center gap-2 transition-all text-base sm:text-lg ${
                   isDownloading 
@@ -584,7 +568,11 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                   <div className="bg-black/20 border border-white/10 p-4 rounded-2xl mb-6 w-full text-left backdrop-blur-md">
                     <p className="text-sm text-white/90 leading-relaxed">
                       <strong className="block mb-1 text-white font-semibold">Langkah Selanjutnya:</strong>
-                      Setelah klik tombol di bawah, menu iPhone akan muncul. Scroll sedikit ke bawah dan pilih opsi <strong className="text-white bg-blue-500/60 px-1.5 py-0.5 rounded-md shadow-sm">"Simpan {readyFilesToShare.length} Item"</strong>.
+                      Setelah klik tombol di bawah, menu iPhone akan muncul. Scroll sedikit ke bawah dan pilih opsi <strong className="text-white bg-blue-500/60 px-1.5 py-0.5 rounded-md shadow-sm">
+                        {readyFilesToShare.length > 1 
+                          ? `"Simpan ${readyFilesToShare.length} Item"` 
+                          : (readyFilesToShare[0].type.includes('video') ? '"Simpan Video"' : '"Simpan Gambar"')}
+                      </strong>.
                     </p>
                   </div>
                   
@@ -592,7 +580,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                     onClick={async () => {
                       try {
                         await navigator.share({
-                          title: selectedGroup?.title || '',
+                          title: selectedGroup?.title || 'Unduhan',
                           files: readyFilesToShare
                         });
                         setToastMessage("Berhasil: Menu Bagikan Terbuka");
