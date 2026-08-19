@@ -174,10 +174,10 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
       const totalBytesToDownload = filesToDownload.reduce((acc, item) => acc + parseInt(item.size || '0', 10), 0);
       setDownloadProgress({ current: 0, total: filesToDownload.length, showPopup: true, loadedBytes: 0, totalBytes: totalBytesToDownload });
       try {
-        const files: File[] = [];
-        let i = 0;
         let totalBytesLoaded = 0;
-        for (const item of filesToDownload) {
+        let filesCompleted = 0;
+        
+        const fetchPromises = filesToDownload.map(async (item) => {
           const properName = getProperFilename(item.name, item.mimeType);
           const res = await fetch(`/api/download?id=${item.id}&name=${encodeURIComponent(properName)}&mimeType=${encodeURIComponent(item.mimeType)}`);
           if (!res.ok) throw new Error("Fetch failed");
@@ -191,8 +191,10 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
               if (value) {
                 chunks.push(value);
                 totalBytesLoaded += value.length;
+                
+                // Throttle UI updates or update safely. JS is single-threaded so += is safe.
                 setDownloadProgress({ 
-                  current: i + 1, 
+                  current: filesCompleted, 
                   total: filesToDownload.length, 
                   showPopup: true, 
                   loadedBytes: totalBytesLoaded,
@@ -201,12 +203,21 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
               }
             }
           }
-          const blob = new Blob(chunks as any[], { type: item.mimeType });
-          files.push(new File([blob], properName, { type: item.mimeType }));
           
-          i++;
-        }
+          filesCompleted += 1;
+          setDownloadProgress({ 
+            current: filesCompleted, 
+            total: filesToDownload.length, 
+            showPopup: true, 
+            loadedBytes: totalBytesLoaded,
+            totalBytes: totalBytesToDownload
+          });
 
+          const blob = new Blob(chunks as any[], { type: item.mimeType });
+          return new File([blob], properName, { type: item.mimeType });
+        });
+
+        const files = await Promise.all(fetchPromises);
         setReadyFilesToShare(files);
       } catch (err: any) {
         console.error("Error fetching files:", err);
