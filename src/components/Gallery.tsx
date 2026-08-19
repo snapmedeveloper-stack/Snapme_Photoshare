@@ -46,6 +46,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
   const [isDownloading, setIsDownloading] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [readyFilesToShare, setReadyFilesToShare] = useState<File[] | null>(null);
 
   // Auto-polling for new photos every 10 seconds
   useEffect(() => {
@@ -162,6 +163,26 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
     if (canUseShare && isIOS) {
+      if (readyFilesToShare) {
+        // Tahap 2: Memicu Share Menu (Langsung tanpa jeda, sehingga lolos blokir Safari)
+        try {
+          await navigator.share({
+            title: selectedGroup.title,
+            files: readyFilesToShare
+          });
+          setToastMessage("Success: Opened Share Menu");
+        } catch (err: any) {
+          if (err.name !== 'AbortError') {
+            console.error("Error sharing files:", err);
+          }
+        } finally {
+          setReadyFilesToShare(null); // Reset setelah share
+          setTimeout(() => setToastMessage(null), 3000);
+        }
+        return;
+      }
+
+      // Tahap 1: Persiapan dan Pengunduhan file ke memori
       setIsDownloading(true);
       setToastMessage("Preparing files...");
       try {
@@ -169,25 +190,19 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
         for (const item of selectedGroup.items) {
           const properName = getProperFilename(item.name, item.mimeType);
           const res = await fetch(`/api/download?id=${item.id}&name=${encodeURIComponent(properName)}&mimeType=${encodeURIComponent(item.mimeType)}`);
+          if (!res.ok) throw new Error("Fetch failed");
           const blob = await res.blob();
           files.push(new File([blob], properName, { type: item.mimeType }));
         }
 
-        await navigator.share({
-          title: selectedGroup.title,
-          files: files
-        });
-        setToastMessage("Success: Opened Share Menu");
+        setReadyFilesToShare(files);
+        setToastMessage("Ready! Tap button again to Save.");
       } catch (err: any) {
-        if (err.name !== 'AbortError') {
-          console.error("Error sharing files:", err);
-          setToastMessage("Error: Failed to prepare files");
-        } else {
-           setToastMessage(null); // User cancelled share
-        }
+        console.error("Error fetching files:", err);
+        setToastMessage("Error: Failed to prepare files");
+        setTimeout(() => setToastMessage(null), 3000);
       } finally {
         setIsDownloading(false);
-        setTimeout(() => setToastMessage(null), 3000);
       }
       return;
     }
@@ -329,6 +344,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                 setSelectedGroup(null);
                 setSelectedMedia(null);
                 setSlideDirection('none');
+                setReadyFilesToShare(null); // Clear prepared files on close
               }}
               className="p-1.5 sm:p-2 -ml-2 rounded-full hover:bg-gray-800 text-gray-400 hover:text-white transition-colors relative z-10"
             >
@@ -517,6 +533,13 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                     Downloading...
+                  </>
+                ) : readyFilesToShare ? (
+                  <>
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Save to Gallery (Tap Here)
                   </>
                 ) : (
                   <>
