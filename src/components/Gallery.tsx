@@ -218,6 +218,16 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
         });
 
         const files = await Promise.all(fetchPromises);
+        
+        // Pastikan progress mentok di 100% jika ada sedikit selisih byte dari API
+        setDownloadProgress({ 
+          current: filesToDownload.length, 
+          total: filesToDownload.length, 
+          showPopup: true, 
+          loadedBytes: totalBytesToDownload,
+          totalBytes: totalBytesToDownload
+        });
+        
         setReadyFilesToShare(files);
       } catch (err: any) {
         console.error("Error fetching files:", err);
@@ -634,7 +644,7 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                   </div>
                   <h3 className="text-xl font-semibold text-white mb-1 tracking-tight">Menyiapkan File</h3>
                   <p className="text-white/70 mb-2 text-sm font-medium">
-                    Mengunduh {downloadProgress.current} dari {downloadProgress.total} file...
+                    Memproses {downloadProgress.total} file...
                   </p>
                   <p className="text-blue-300 font-mono text-xs mb-5 bg-blue-900/40 px-2.5 py-1 rounded-md shadow-inner border border-blue-500/20">
                     {(downloadProgress.loadedBytes / (1024 * 1024)).toFixed(2)} MB 
@@ -644,8 +654,8 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
                     <div className="bg-gradient-to-r from-blue-500 to-cyan-400 h-3 rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(59,130,246,0.5)]" 
                       style={{ 
                         width: `${downloadProgress.totalBytes > 0 
-                          ? (downloadProgress.loadedBytes / downloadProgress.totalBytes) * 100 
-                          : (downloadProgress.current / (downloadProgress.total || 1)) * 100}%` 
+                          ? Math.min(100, (downloadProgress.loadedBytes / downloadProgress.totalBytes) * 100)
+                          : Math.min(100, (downloadProgress.current / (downloadProgress.total || 1)) * 100)}%` 
                       }}>
                     </div>
                   </div>
