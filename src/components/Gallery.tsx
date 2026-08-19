@@ -549,77 +549,82 @@ export default function Gallery({ initialPhotos, driveId }: { initialPhotos: Dri
 
       {/* iOS Download Prepare Modal */}
       {downloadProgress.showPopup && (
-        <div className="fixed inset-0 z-[60] bg-gray-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl flex flex-col items-center text-center">
-            {readyFilesToShare ? (
-              <>
-                <div className="w-16 h-16 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center mb-4">
-                  <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">Ready to Save!</h3>
-                <p className="text-gray-400 mb-3 text-sm">File Anda sudah siap disimpan.</p>
-                
-                <div className="bg-blue-900/30 border border-blue-500/30 p-3 rounded-xl mb-6 w-full text-left">
-                  <p className="text-sm text-blue-200 leading-relaxed">
-                    <strong className="block mb-1 text-white">Langkah Selanjutnya:</strong>
-                    Setelah klik tombol di bawah, menu iPhone akan muncul. Scroll sedikit ke bawah dan pilih opsi <strong className="text-white bg-blue-500/40 px-1 rounded">"Simpan {readyFilesToShare.length} Item"</strong> (atau Save {readyFilesToShare.length} Items).
-                  </p>
-                </div>
-                
-                <button 
-                  onClick={async () => {
-                    try {
-                      await navigator.share({
-                        title: selectedGroup?.title || '',
-                        files: readyFilesToShare
-                      });
-                      setToastMessage("Success: Opened Share Menu");
-                    } catch (err: any) {
-                      if (err.name !== 'AbortError') {
-                        console.error("Error sharing files:", err);
+        <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-lg flex items-center justify-center p-4 animate-fade-in">
+          <div className="relative bg-white/10 backdrop-blur-2xl border border-white/20 rounded-[2rem] p-7 w-full max-w-sm shadow-[0_8px_40px_-12px_rgba(0,0,0,0.5)] flex flex-col items-center text-center overflow-hidden">
+            {/* Glossy shine overlay */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-white/5 pointer-events-none"></div>
+            
+            <div className="relative z-10 w-full flex flex-col items-center">
+              {readyFilesToShare ? (
+                <>
+                  <div className="w-16 h-16 bg-green-500/30 text-green-400 rounded-full flex items-center justify-center mb-4 shadow-[0_0_20px_rgba(34,197,94,0.3)]">
+                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <h3 className="text-2xl font-semibold text-white mb-2 tracking-tight">Ready to Save!</h3>
+                  <p className="text-white/70 mb-4 text-sm font-medium">File Anda sudah siap disimpan.</p>
+                  
+                  <div className="bg-black/20 border border-white/10 p-4 rounded-2xl mb-6 w-full text-left backdrop-blur-md">
+                    <p className="text-sm text-white/90 leading-relaxed">
+                      <strong className="block mb-1 text-white font-semibold">Langkah Selanjutnya:</strong>
+                      Setelah klik tombol di bawah, menu iPhone akan muncul. Scroll sedikit ke bawah dan pilih opsi <strong className="text-white bg-blue-500/60 px-1.5 py-0.5 rounded-md shadow-sm">"Simpan {readyFilesToShare.length} Item"</strong>.
+                    </p>
+                  </div>
+                  
+                  <button 
+                    onClick={async () => {
+                      try {
+                        await navigator.share({
+                          title: selectedGroup?.title || '',
+                          files: readyFilesToShare
+                        });
+                        setToastMessage("Success: Opened Share Menu");
+                      } catch (err: any) {
+                        if (err.name !== 'AbortError') {
+                          console.error("Error sharing files:", err);
+                        }
+                      } finally {
+                        setReadyFilesToShare(null);
+                        setDownloadProgress({ current: 0, total: 0, showPopup: false });
+                        setTimeout(() => setToastMessage(null), 3000);
                       }
-                    } finally {
+                    }}
+                    className="w-full bg-[#007AFF] hover:bg-blue-500 text-white font-semibold py-3.5 px-4 rounded-xl shadow-lg transition-all text-lg active:scale-95"
+                  >
+                    Save to Gallery
+                  </button>
+                  <button 
+                    onClick={() => {
                       setReadyFilesToShare(null);
                       setDownloadProgress({ current: 0, total: 0, showPopup: false });
-                      setTimeout(() => setToastMessage(null), 3000);
-                    }
-                  }}
-                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-xl shadow-lg transition-all"
-                >
-                  Save to Gallery
-                </button>
-                <button 
-                  onClick={() => {
-                    setReadyFilesToShare(null);
-                    setDownloadProgress({ current: 0, total: 0, showPopup: false });
-                  }}
-                  className="w-full mt-3 bg-transparent text-gray-400 hover:text-white font-medium py-2 px-4 transition-all"
-                >
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <>
-                <div className="relative w-16 h-16 mb-4">
-                  <svg className="animate-spin w-16 h-16 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white">
-                    {Math.round((downloadProgress.current / (downloadProgress.total || 1)) * 100)}%
+                    }}
+                    className="w-full mt-3 bg-transparent text-white/60 hover:text-white font-medium py-2 px-4 transition-all active:scale-95"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="relative w-16 h-16 mb-5">
+                    <svg className="animate-spin w-16 h-16 text-blue-500/80" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white drop-shadow-md">
+                      {Math.round((downloadProgress.current / (downloadProgress.total || 1)) * 100)}%
+                    </div>
                   </div>
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2">Preparing Files</h3>
-                <p className="text-gray-400 mb-6 text-sm">
-                  Downloading {downloadProgress.current} of {downloadProgress.total} files...
-                </p>
-                <div className="w-full bg-gray-800 rounded-full h-2.5 mb-2 overflow-hidden">
-                  <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-300" style={{ width: `${(downloadProgress.current / (downloadProgress.total || 1)) * 100}%` }}></div>
-                </div>
-              </>
-            )}
+                  <h3 className="text-xl font-semibold text-white mb-2 tracking-tight">Preparing Files</h3>
+                  <p className="text-white/70 mb-6 text-sm font-medium">
+                    Downloading {downloadProgress.current} of {downloadProgress.total} files...
+                  </p>
+                  <div className="w-full bg-black/30 rounded-full h-3 mb-2 overflow-hidden shadow-inner border border-white/10">
+                    <div className="bg-gradient-to-r from-blue-500 to-cyan-400 h-3 rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(59,130,246,0.5)]" style={{ width: `${(downloadProgress.current / (downloadProgress.total || 1)) * 100}%` }}></div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
